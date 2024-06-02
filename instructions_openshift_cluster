@@ -47,9 +47,9 @@ cd /mnt/extra/ && git clone https://github.com/jdandrea/ocp4_setup_upi_kvm.git &
 #INFO Access the OpenShift web-console here: https://console-openshift-console.apps.vipnet.localdomain
 #Login to the console with user: "kubeadmin", and password: "xT4uv-zs6b4-Zv964-62QtE"
 
-cd /mnt/extra/virt/sdir/
-systemctl enable firewalld && systemctl start firewalld && systemctl status firewalld
-./expose_cluster.sh --method firewalld
+#cd /mnt/extra/virt/sdir/
+#systemctl enable firewalld && systemctl start firewalld && systemctl status firewalld
+#./expose_cluster.sh --method firewalld
 
 cd /mnt/extra/virt/sdir/
 virsh list && virsh net-list
