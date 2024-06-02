@@ -1,0 +1,70 @@
+chmod +x cloudlab-setup-ubuntu-tl.sh && ./cloudlab-setup-ubuntu-tl.sh && \
+sudo apt-get install libvirt-daemon genisoimage libguestfs-tools libosinfo-bin virtinst qemu-kvm git vim net-tools wget curl bash-completion python-pip libvirt-daemon-system virt-manager bridge-utils libnss-libvirt libvirt-clients osinfo-db-tools intltool sshpass p7zip-full p7zip-rar uvtool dnsmasq -y && \
+sudo sed -i 's/hosts:          files dns/hosts:          files libvirt libvirt_guest dns/' /etc/nsswitch.conf && sudo lsmod | grep kvm && sudo reboot
+#sudo systemctl restart libvirtd && sudo systemctl status libvirtd
+
+screen
+# Press Return to continue
+# detach from session without killing it: Ctrl a d 
+# to see screen sessions: screen -ls
+# detach from closed session: screen -d -r 1996.pts-0.node0
+# enter session: screen -r 1996.pts-0.node0
+# exit a session and terminate it: exit
+
+sudo apt update -y && sudo apt install cockpit -y && sudo systemctl enable --now cockpit.socket && sudo apt install cockpit-machines -y && echo "root:gprm8350" | sudo chpasswd
+exit
+
+sudo -i
+
+# Create environment
+cd /mnt/extra && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT && sudo virsh list --all && sudo brctl show && \
+mkdir -p /mnt/extra/virt/images && mkdir -p /mnt/extra/virt/cdir && mkdir -p /mnt/extra/virt/sdir && \
+echo "interface=lo" > /etc/dnsmasq.d/int-lo.conf && systemctl start dnsmasq && systemctl enable dnsmasq && \
+sed -i 's/#DNS=/DNS=127.0.0.1/' /etc/systemd/resolved.conf && sed -i 's/#Domains=/Domains="~."/' /etc/systemd/resolved.conf && \
+echo "resolv-file=/run/systemd/resolve/resolv.conf" > /etc/dnsmasq.d/resolved.conf && systemctl restart dnsmasq && systemctl restart systemd-resolved && \
+wget -O "/mnt/extra/osinfo-db.tar.xz" https://releases.pagure.org/libosinfo/osinfo-db-20231215.tar.xz && sudo osinfo-db-import --local "/mnt/extra/osinfo-db.tar.xz" && \
+sudo sed -i -E 's,#?(security_driver)\s*=.*,\1 = "none",g' /etc/libvirt/qemu.conf && sudo systemctl restart libvirtd && \
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz && tar xvf openshift-client-linux.tar.gz && \
+sudo mv oc kubectl /usr/local/bin && rm -f README.md LICENSE openshift-client-linux.tar.gz && \
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux.tar.gz && tar xvf openshift-install-linux.tar.gz && \
+sudo mv openshift-install /usr/local/bin && rm -f README.md LICENSE openshift-install-linux.tar.gz && openshift-install version && oc version && kubectl version --client
+
+ssh-keygen -t rsa -N "" -f ~/.ssh/id_rsa
+
+###########################################################################################################################################################################################
+### OpenShift 4 Automated Cluster Installation (UPI on KVM) (https://github.com/jdandrea/ocp4_setup_upi_kvm)  #####################################################
+###########################################################################################################################################################################################
+
+# Go to: https://cloud.redhat.com/openshift/install/pull-secret
+vim /mnt/extra/pull-secret
+{"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3ZwYXNpYXMxd3pzam52bmJjcWR2cGFid2YydGMycmFrNWg6NzJEMDNSQlJBNEdBNk0wNE5MSEpKRDZaV0RWRFQyNzIyODNCNTEyR0tDVlZMMUJVWDkyWk1OS1JHSTRRREkxVA==","email":"pasiasv@gmail.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3ZwYXNpYXMxd3pzam52bmJjcWR2cGFid2YydGMycmFrNWg6NzJEMDNSQlJBNEdBNk0wNE5MSEpKRDZaV0RWRFQyNzIyODNCNTEyR0tDVlZMMUJVWDkyWk1OS1JHSTRRREkxVA==","email":"pasiasv@gmail.com"},"registry.connect.redhat.com":{"auth":"NTMwNjg1NTR8dWhjLTFXWnNKblZuYmNxRHZQYWJ3RjJ0QzJSQWs1SDpleUpoYkdjaU9pSlNVelV4TWlKOS5leUp6ZFdJaU9pSXpZV1EwTmpneU1XUXdPV1kwTTJVek9ESTFNR013TUdNMU9HTXlNelF3T1NKOS5qazJhdnVUSGFmX0pXZWlHZVNPVm1KQnZzZGtrcThMNzBYWHhvRGVlOGFOS21XbllPMWFzSU9ndXVoX25JWTVVTXlJMzk4cTJ6RnI3T0ZSbXBkckxiT3BTT1hJQXNkZzdIX3VmMjJ4RmV6UDREOEcwLUZiY2xkQ3AwejRiNlJVd3djd1E1elhFa0dEQ2VCNXlLVnRrUmFDeGYwZjhBWVlvMFlWNE44QVAtd0UxaDRiYktxOTc2LU9JVENqYmtKWHdYMlhWbE94Q2dyN09lMWhzR3NBc004UzBrRFJQZlhoejIzeXJ6RDBHdmxkdlFndGxkQXhNQUxXdWROZmN6ZEYyZFdWVV81cGdudkhHczk1cjZPbHQzNDUtaGVrc0lKU0F2SVU5NHpGSEl6ZklQTzVsc2pzN1lQaFBfZEQ2aExXUmVNWDFRX0x5MVdyMWNRcWxiejFfYm5mZ0FLUXZzdmVrUnZUckthaUhpZUJkNFhSNzVPVjJVQ2JpSzVYdmdyYmtaRFh3NGhhZnJJMUNiQ3VHeWx2LXgwNHI4NDlRcDFJTkozaDBQTlMtM1BxVVRDNzZRN1ZaVnRRT2JJLXc3WGtHZ1U0TngxMS1kZkVDbnNNUFZTR0VmS19NNlA3SEpTQkotZk9mYmhZVVYySDFETTYwYnJRZW42Y280Z1RxNThWUmtvUWE1SENPQ0RuTTdWVng2SjlsQXExOHNVdXdic3pUbXdRQ0R0dmZpMDl4eWxEV1pYeXlaVjM0dmZjNXJzb3dON0VIdFFKeU1LNTFucG5vNm1GWWx6bVRHM3ZUd1BtWi13UzhKZTI5bnlDTTlzMkVVdDA1NUNmcDZyMVd6Z0VCM2tlSVU2eFdXejdycFNFWG5XQVVNYXRBdWxhT0V0c3EwVmZMd2M5WG9uUQ==","email":"pasiasv@gmail.com"},"registry.redhat.io":{"auth":"NTMwNjg1NTR8dWhjLTFXWnNKblZuYmNxRHZQYWJ3RjJ0QzJSQWs1SDpleUpoYkdjaU9pSlNVelV4TWlKOS5leUp6ZFdJaU9pSXpZV1EwTmpneU1XUXdPV1kwTTJVek9ESTFNR013TUdNMU9HTXlNelF3T1NKOS5qazJhdnVUSGFmX0pXZWlHZVNPVm1KQnZzZGtrcThMNzBYWHhvRGVlOGFOS21XbllPMWFzSU9ndXVoX25JWTVVTXlJMzk4cTJ6RnI3T0ZSbXBkckxiT3BTT1hJQXNkZzdIX3VmMjJ4RmV6UDREOEcwLUZiY2xkQ3AwejRiNlJVd3djd1E1elhFa0dEQ2VCNXlLVnRrUmFDeGYwZjhBWVlvMFlWNE44QVAtd0UxaDRiYktxOTc2LU9JVENqYmtKWHdYMlhWbE94Q2dyN09lMWhzR3NBc004UzBrRFJQZlhoejIzeXJ6RDBHdmxkdlFndGxkQXhNQUxXdWROZmN6ZEYyZFdWVV81cGdudkhHczk1cjZPbHQzNDUtaGVrc0lKU0F2SVU5NHpGSEl6ZklQTzVsc2pzN1lQaFBfZEQ2aExXUmVNWDFRX0x5MVdyMWNRcWxiejFfYm5mZ0FLUXZzdmVrUnZUckthaUhpZUJkNFhSNzVPVjJVQ2JpSzVYdmdyYmtaRFh3NGhhZnJJMUNiQ3VHeWx2LXgwNHI4NDlRcDFJTkozaDBQTlMtM1BxVVRDNzZRN1ZaVnRRT2JJLXc3WGtHZ1U0TngxMS1kZkVDbnNNUFZTR0VmS19NNlA3SEpTQkotZk9mYmhZVVYySDFETTYwYnJRZW42Y280Z1RxNThWUmtvUWE1SENPQ0RuTTdWVng2SjlsQXExOHNVdXdic3pUbXdRQ0R0dmZpMDl4eWxEV1pYeXlaVjM0dmZjNXJzb3dON0VIdFFKeU1LNTFucG5vNm1GWWx6bVRHM3ZUd1BtWi13UzhKZTI5bnlDTTlzMkVVdDA1NUNmcDZyMVd6Z0VCM2tlSVU2eFdXejdycFNFWG5XQVVNYXRBdWxhT0V0c3EwVmZMd2M5WG9uUQ==","email":"pasiasv@gmail.com"}}}
+
+cd /mnt/extra/ && git clone https://github.com/jdandrea/ocp4_setup_upi_kvm.git && cd ocp4_setup_upi_kvm && sed -i 's/--cpu host/--cpu host-passthrough/' .install_scripts/create_nodes.sh
+
+./ocp4_setup_upi_kvm.sh -O 4.15.stable -t OVNKubernetes -p /mnt/extra/pull-secret -c vipnet -d localdomain -m 3 -w 3 --master-cpu 4 --master-mem 24576 --worker-cpu 4 --worker-mem 24576 -N 155 -v /mnt/extra/virt/images -z /etc/dnsmasq.d -s /mnt/extra/virt/sdir -x /mnt/extra/virt/cdir --autostart-vms
+
+#INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/mnt/extra/virt/sdir/install_dir/auth/kubeconfig'
+#INFO Access the OpenShift web-console here: https://console-openshift-console.apps.vipnet.localdomain
+#Login to the console with user: "kubeadmin", and password: "xT4uv-zs6b4-Zv964-62QtE"
+
+cd /mnt/extra/virt/sdir/
+systemctl enable firewalld && systemctl start firewalld && systemctl status firewalld
+./expose_cluster.sh --method firewalld
+
+cd /mnt/extra/virt/sdir/
+virsh list && virsh net-list
+export KUBECONFIG=/mnt/extra/virt/sdir/install_dir/auth/kubeconfig
+./kubectl cluster-info && ./kubectl get nodes -o wide --all-namespaces && ./kubectl get pods -o wide --all-namespaces && ./kubectl get svc -o wide --all-namespaces && ./kubectl get deployments -o wide --all-namespaces
+./oc get nodes && ./oc get clusteroperators && ./oc get clusterversion && ./oc projects
+KUBE_PASS=$(cat install_dir/auth/kubeadmin-password)
+./oc login -u kubeadmin -p $KUBE_PASS
+./oc projects
+
+# to find OC Web Console IP address: ping console-openshift-console.apps.vipnet.localdomain
+# Result: 192.168.155.75
+
+ssh -i sshkey core@master-1.vipnet.localdomain
+
+# Destroy the already installed cluster
+cd /mnt/extra/ocp4_setup_upi_kvm && \
+./ocp4_setup_upi_kvm.sh -p /mnt/extra/pull-secret -c vipnet -d localdomain -v /mnt/extra/virt/images -z /etc/dnsmasq.d -s /mnt/extra/virt/sdir -x /mnt/extra/virt/cdir --destroy
