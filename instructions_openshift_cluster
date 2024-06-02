@@ -45,25 +45,27 @@ cd /mnt/extra/ && git clone https://github.com/jdandrea/ocp4_setup_upi_kvm.git &
 
 #INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/mnt/extra/virt/sdir/install_dir/auth/kubeconfig'
 #INFO Access the OpenShift web-console here: https://console-openshift-console.apps.vipnet.localdomain
-#Login to the console with user: "kubeadmin", and password: "xT4uv-zs6b4-Zv964-62QtE"
-
-#cd /mnt/extra/virt/sdir/
-#systemctl enable firewalld && systemctl start firewalld && systemctl status firewalld
-#./expose_cluster.sh --method firewalld
+#Login to the console with user: "kubeadmin", and password: "YoVxs-k5ZEI-IokrD-owfjq"
 
 cd /mnt/extra/virt/sdir/
 virsh list && virsh net-list
 export KUBECONFIG=/mnt/extra/virt/sdir/install_dir/auth/kubeconfig
-./kubectl cluster-info && ./kubectl get nodes -o wide --all-namespaces && ./kubectl get pods -o wide --all-namespaces && ./kubectl get svc -o wide --all-namespaces && ./kubectl get deployments -o wide --all-namespaces
-./oc get nodes && ./oc get clusteroperators && ./oc get clusterversion && ./oc projects
-KUBE_PASS=$(cat install_dir/auth/kubeadmin-password)
-./oc login -u kubeadmin -p $KUBE_PASS
-./oc projects
+oc get nodes && oc get clusteroperators && oc get clusterversion
+kubectl cluster-info && \
+kubectl get nodes -o wide --all-namespaces && kubectl get pods -o wide --all-namespaces && kubectl get svc -o wide --all-namespaces && kubectl get deployments -o wide --all-namespaces
+KUBE_PASS=$(cat /mnt/extra/virt/sdir/install_dir/auth/kubeadmin-password)
+oc login -u kubeadmin -p $KUBE_PASS
+oc projects
 
 # to find OC Web Console IP address: ping console-openshift-console.apps.vipnet.localdomain
-# Result: 192.168.155.75
+# Result: 192.168.155.176
 
-ssh -i sshkey core@master-1.vipnet.localdomain
+ssh -i /mnt/extra/virt/sdir/sshkey core@master-1.vipnet.localdomain
+uname -a && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT
+
+#cd /mnt/extra/virt/sdir/
+#systemctl enable firewalld && systemctl start firewalld && systemctl status firewalld
+#./expose_cluster.sh --method firewalld
 
 # Destroy the already installed cluster
 cd /mnt/extra/ocp4_setup_upi_kvm && \
