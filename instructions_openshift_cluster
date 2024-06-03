@@ -64,9 +64,203 @@ ssh -i /mnt/extra/virt/sdir/sshkey core@master-1.vipnet.localdomain
 uname -a && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT
 exit
 
-#cd /mnt/extra/virt/sdir/
-#systemctl enable firewalld && systemctl start firewalld && systemctl status firewalld
-#./expose_cluster.sh --method firewalld
+# Exposing the cluster outside the host/hypervisor
+cd /mnt/extra/virt/sdir/ && ./expose_cluster.sh --method haproxy
+
+# Install OpenShift Container Storage (OCS) 4
+cd /mnt/extra/virt/sdir/
+./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-1
+./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-2
+./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-3
+
+while true; do
+  for x in $(oc get csr | grep Pending | awk '{print $1}'); do
+    oc adm certificate approve $x;
+  done;
+  sleep 5;
+done
+
+watch oc get nodes
+
+source ./env
+
+oc label node storage-1.${CLUSTER_NAME}.${BASE_DOM} cluster.ocs.openshift.io/openshift-storage=''
+oc label node storage-2.${CLUSTER_NAME}.${BASE_DOM} cluster.ocs.openshift.io/openshift-storage=''
+oc label node storage-3.${CLUSTER_NAME}.${BASE_DOM} cluster.ocs.openshift.io/openshift-storage=''
+
+oc new-project local-storage
+
+cat <<EOF | oc create -f -
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: local-storage-opg
+  namespace: local-storage
+spec:
+  targetNamespaces:
+  - local-storage
+EOF
+
+cat <<EOF | oc create -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: local-storage-operator
+  namespace: local-storage 
+spec:
+  channel: "4.15"
+  name: local-storage-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+
+watch oc get csv -n local-storage
+
+cat <<EOF | oc create -f -
+apiVersion: "local.storage.openshift.io/v1"
+kind: "LocalVolume"
+metadata:
+  name: "local-disks-fs"
+  namespace: "local-storage"
+spec:
+  nodeSelector:
+    nodeSelectorTerms:
+    - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - storage-1.${CLUSTER_NAME}.${BASE_DOM}
+          - storage-2.${CLUSTER_NAME}.${BASE_DOM}
+          - storage-3.${CLUSTER_NAME}.${BASE_DOM}
+  storageClassDevices:
+    - storageClassName: "lo-fs"
+      volumeMode: Filesystem
+      devicePaths:
+        - /dev/vdb
+EOF
+
+cat <<EOF | oc create -f -
+apiVersion: "local.storage.openshift.io/v1"
+kind: "LocalVolume"
+metadata:
+  name: "local-disks"
+  namespace: "local-storage"
+spec:
+  nodeSelector:
+    nodeSelectorTerms:
+    - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - storage-1.${CLUSTER_NAME}.${BASE_DOM}
+          - storage-2.${CLUSTER_NAME}.${BASE_DOM}
+          - storage-3.${CLUSTER_NAME}.${BASE_DOM}
+  storageClassDevices:
+    - storageClassName: "lo-blk"
+      volumeMode: Block
+      devicePaths:
+        - /dev/vdc
+EOF
+
+watch oc get pods -n local-storage
+
+oc get sc
+
+cat <<EOF | oc create -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  labels:
+    openshift.io/cluster-monitoring: "true"
+  name: openshift-storage
+spec: {}
+EOF
+
+cat <<EOF | oc create -f -
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: openshift-storage-opg
+  namespace: openshift-storage
+spec:
+  targetNamespaces:
+  - openshift-storage
+EOF
+
+cat <<EOF | oc create -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: ocs-operator
+  namespace: openshift-storage 
+spec:
+  channel: "stable-4.15"
+  name: ocs-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+
+watch oc get csv -n openshift-storage
+
+cat <<EOF | oc create -f -
+apiVersion: ocs.openshift.io/v1
+kind: StorageCluster
+metadata:
+  name: ocs-storagecluster
+  namespace: openshift-storage
+spec:
+  manageNodes: false
+  monPVCTemplate:
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 50Gi
+      storageClassName: 'lo-fs'
+      volumeMode: Filesystem
+  resources:      
+    mon:      
+      requests: {}
+      limits: {}
+    mds:
+      requests: {}
+      limits: {}
+    rgw:      
+      requests: {}
+      limits: {}
+    mgr:
+      requests: {}
+      limits: {}
+    noobaa-core:      
+      requests: {}
+      limits: {}
+    noobaa-db:        
+      requests: {}
+      limits: {}
+  storageDeviceSets:
+  - count: 1
+    dataPVCTemplate:
+      spec:
+        accessModes:
+        - ReadWriteOnce
+        resources:
+          requests:
+            storage: 100Gi
+        storageClassName: 'lo-blk'
+        volumeMode: Block
+    name: ocs-deviceset
+    placement: {}
+    portable: true
+    replica: 3
+    resources:
+      requests: {}
+      limits: {}
+EOF
+
+watch oc get pods -n openshift-storage
+
+oc get sc
 
 # Destroy the already installed cluster
 cd /mnt/extra/ocp4_setup_upi_kvm && \
