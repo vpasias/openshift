@@ -68,9 +68,9 @@ exit
 cd /mnt/extra/virt/sdir/ && ./expose_cluster.sh --method haproxy
 
 # Install OpenShift Container Storage (OCS) 4
-cd /mnt/extra/virt/sdir/
-./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-1
-./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-2
+cd /mnt/extra/virt/sdir/ && \
+./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-1 && \
+./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-2 && \
 ./add_node.sh --cpu 4 --memory 16384 --add-disk 50 --add-disk 100 --name storage-3
 
 while true; do
