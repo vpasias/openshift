@@ -262,6 +262,47 @@ watch oc get pods -n openshift-storage
 
 oc get sc
 
+# Installing the OpenShift Virtualization Operator by using the command line
+
+cat <<EOF | oc create -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-cnv
+---
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: kubevirt-hyperconverged-group
+  namespace: openshift-cnv
+spec:
+  targetNamespaces:
+    - openshift-cnv
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: hco-operatorhub
+  namespace: openshift-cnv
+spec:
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  name: kubevirt-hyperconverged
+  startingCSV: kubevirt-hyperconverged-operator.v4.15.2
+  channel: "stable"
+EOF
+
+cat <<EOF | oc create -f -
+apiVersion: hco.kubevirt.io/v1beta1
+kind: HyperConverged
+metadata:
+  name: kubevirt-hyperconverged
+  namespace: openshift-cnv
+spec:
+EOF
+
+watch oc get csv -n openshift-cnv
+
 # Destroy the already installed cluster
 cd /mnt/extra/ocp4_setup_upi_kvm && \
 ./ocp4_setup_upi_kvm.sh -p /mnt/extra/pull-secret -c vipnet -d localdomain -v /mnt/extra/virt/images -z /etc/dnsmasq.d -s /mnt/extra/virt/sdir -x /mnt/extra/virt/cdir --destroy
