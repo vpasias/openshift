@@ -1,0 +1,23 @@
+cluster: ocp
+domain: vipnet.localdomain
+version: stable
+tag: '4.15'
+network_type: OVNKubernetes
+ovn_hostrouting: true
+network: ocpnet
+api_ip: 192.168.254.254
+sslip: true
+ctlplanes: 3
+workers: 0
+numcpus: 16
+memory: 32768
+bootstrap_memory: 8192
+disk_size: 100
+extra_disks:
+- 100
+apps:
+- local-storage-operator
+- odf-operator
+- users
+async: true
+notify: true
