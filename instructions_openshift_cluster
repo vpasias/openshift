@@ -41,7 +41,7 @@ vim /mnt/extra/pull-secret
 
 cd /mnt/extra/ && git clone https://github.com/jdandrea/ocp4_setup_upi_kvm.git && cd ocp4_setup_upi_kvm && sed -i 's/--cpu host/--cpu host-passthrough/' .install_scripts/create_nodes.sh
 
-./ocp4_setup_upi_kvm.sh -O 4.15.stable -t OVNKubernetes -p /mnt/extra/pull-secret -c vipnet -d localdomain -m 3 -w 3 --master-cpu 8 --master-mem 32768 --worker-cpu 8 --worker-mem 32768 -N 155 -v /mnt/extra/virt/images -z /etc/dnsmasq.d -s /mnt/extra/virt/sdir -x /mnt/extra/virt/cdir --autostart-vms
+./ocp4_setup_upi_kvm.sh -O 4.15.stable -t OVNKubernetes -p /mnt/extra/pull-secret -c vipnet -d localdomain -m 3 -w 3 --master-cpu 16 --master-mem 32768 --worker-cpu 16 --worker-mem 32768 -N 155 -v /mnt/extra/virt/images -z /etc/dnsmasq.d -s /mnt/extra/virt/sdir -x /mnt/extra/virt/cdir --autostart-vms
 
 #INFO To access the cluster as the system:admin user when using 'oc', run 'export KUBECONFIG=/mnt/extra/virt/sdir/install_dir/auth/kubeconfig'
 #INFO Access the OpenShift web-console here: https://console-openshift-console.apps.vipnet.localdomain
@@ -68,9 +68,9 @@ cd /mnt/extra/virt/sdir/ && ./expose_cluster.sh --method haproxy
 
 # Install OpenShift Data Foundation / OpenShift Container Storage (OCS) 4
 cd /mnt/extra/virt/sdir/ && \
-./add_node.sh --cpu 8 --memory 32768 --add-disk 100 --add-disk 100 --name storage-1 && \
-./add_node.sh --cpu 8 --memory 32768 --add-disk 100 --add-disk 100 --name storage-2 && \
-./add_node.sh --cpu 8 --memory 32768 --add-disk 100 --add-disk 100 --name storage-3
+./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-1 && \
+./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-2 && \
+./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-3
 
 while true; do
   for x in $(oc get csr | grep Pending | awk '{print $1}'); do
