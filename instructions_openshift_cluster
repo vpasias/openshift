@@ -303,6 +303,8 @@ EOF
 watch oc get csv -n openshift-cnv
 
 # Deploying OpenStack Operators on OpenShift
+# https://lewisdenny.io/openstack_operator_deployment/
+
 git clone https://github.com/openstack-k8s-operators/install_yamls.git && cd install_yamls
 make crc_storage
 make openstack
