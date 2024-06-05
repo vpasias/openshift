@@ -4,8 +4,10 @@ version: stable
 tag: '4.15'
 network_type: OVNKubernetes
 ovn_hostrouting: true
+pull_secret: openshift_pull.json
 network: ocpnet
 api_ip: 192.168.254.254
+ingress_ip: 192.168.254.250
 sslip: true
 ctlplanes: 3
 workers: 0
