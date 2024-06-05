@@ -302,6 +302,22 @@ EOF
 
 watch oc get csv -n openshift-cnv
 
+# Deploying OpenStack Operators on OpenShift
+git clone https://github.com/openstack-k8s-operators/install_yamls.git && cd install_yamls
+make crc_storage
+make openstack
+oc get csv -l operators.coreos.com/openstack-operator.openstack -w
+
+make openstack_deploy
+oc get pods -w
+oc get all -n openstack
+oc get route -n openstack
+
+mkdir -p ~/.config/openstack
+cat > ~/.config/openstack/clouds.yaml << EOF
+$(oc get cm openstack-config -o json | jq -r '.data["clouds.yaml"]')
+EOF
+
 ######################## Delete ########################################################
 # Destroy the already installed cluster
 ########################################################################################
