@@ -108,7 +108,6 @@ export KUBECONFIG=$HOME/.kcli/clusters/ocp/auth/kubeconfig
 
 alias oc='sudo oc'
 
-oc version
 oc projects
 oc cluster-info
 oc get nodes -o wide --all-namespaces
