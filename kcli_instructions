@@ -1,1 +1,119 @@
+chmod +x cloudlab-setup-ubuntu-tl.sh && ./cloudlab-setup-ubuntu-tl.sh && \
+sudo apt-get install libvirt-daemon genisoimage libguestfs-tools libosinfo-bin virtinst qemu-kvm git vim net-tools wget curl bash-completion python-pip libvirt-daemon-system virt-manager bridge-utils libnss-libvirt libvirt-clients osinfo-db-tools intltool sshpass p7zip-full p7zip-rar uvtool dnsmasq -y && \
+sudo sed -i 's/hosts:          files dns/hosts:          files libvirt libvirt_guest dns/' /etc/nsswitch.conf && sudo lsmod | grep kvm && sudo reboot
+#sudo systemctl restart libvirtd && sudo systemctl status libvirtd
 
+screen
+# Press Return to continue
+# detach from session without killing it: Ctrl a d 
+# to see screen sessions: screen -ls
+# detach from closed session: screen -d -r 1996.pts-0.node0
+# enter session: screen -r 1996.pts-0.node0
+# exit a session and terminate it: exit
+
+sudo apt update -y && sudo apt install cockpit -y && sudo systemctl enable --now cockpit.socket && sudo apt install cockpit-machines -y && echo "root:gprm8350" | sudo chpasswd
+exit
+
+sudo -i
+
+screen
+# Press Return to continue
+# detach from session without killing it: Ctrl a d 
+# to see screen sessions: screen -ls
+# detach from closed session: screen -d -r 1935.pts-0.node0
+# enter session: screen -r 1935.pts-0.node0
+# exit a session and terminate it: exit
+
+cd /mnt/extra && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT && sudo virsh list --all && sudo brctl show && \
+wget -O "/mnt/extra/osinfo-db.tar.xz" https://releases.pagure.org/libosinfo/osinfo-db-20240523.tar.xz && sudo osinfo-db-import --local "/mnt/extra/osinfo-db.tar.xz"
+
+# Create the iason user
+sudo useradd iason -m -s /bin/bash && sudo usermod -aG sudo iason && echo "iason:iason" | chpasswd && echo "iason ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/iason && \
+sudo chmod 0440 /etc/sudoers.d/iason && su - iason
+
+# Install dependencies
+sudo apt update -y && sudo apt-get install apt-transport-https ca-certificates curl gnupg python3-venv -y && \
+sudo usermod -aG libvirt `id -un` && sudo adduser `id -un` libvirt-qemu && sudo adduser `id -un` kvm && sudo adduser `id -un` libvirt-dnsmasq && sudo sed -i 's/0770/0777/' /etc/libvirt/libvirtd.conf && \
+echo 0 | sudo tee /sys/module/kvm/parameters/halt_poll_ns && echo 'security_driver = "none"' | sudo tee /etc/libvirt/qemu.conf && sudo chmod 0644 /boot/vmlinuz* && \
+sudo systemctl restart libvirtd && sudo systemctl status libvirtd && \
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz && tar xvf openshift-client-linux.tar.gz && \
+sudo mv oc kubectl /usr/local/bin && rm -f README.md LICENSE openshift-client-linux.tar.gz && \
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux.tar.gz && tar xvf openshift-install-linux.tar.gz && \
+sudo mv openshift-install /usr/local/bin && rm -f README.md LICENSE openshift-install-linux.tar.gz && openshift-install version && oc version && kubectl version --client
+
+exit
+
+su - iason
+
+virsh list --all && virsh net-list --all && virsh pool-list && python3 --version && python --version && python3 --version && mkdir -p /home/iason/images && mkdir -p /home/iason/vms
+
+########################################################################################################################################################################
+####################### kcli (https://github.com/karmab/kcli) ########################################################################################################
+####  https://www.linkedin.com/pulse/kcli-only-tool-you-need-create-kubernetes-openshift-banerjee?trk=pulse-article_more-articles_related-content-card ##########  
+########################################################################################################################################################################
+
+mkdir -p $HOME/.kcli
+
+ssh-keygen -t rsa -N '' -f $HOME/.ssh/id_rsa
+
+curl https://raw.githubusercontent.com/karmab/kcli/master/install.sh | sudo bash
+
+alias kcli='sudo kcli'
+
+kcli create pool -p /home/iason/images opool && \
+sudo setfacl -m u:$(id -un):rwx /var/lib/libvirt/images && sudo setfacl -m u:$(id -un):rwx /home/iason/images
+
+kcli list images && kcli list vms && mkdir -p kclilabs && cd kclilabs
+
+### Openshift Cluster
+
+kcli info cluster openshift
+
+cat > ocp-param.yaml << EOF
+cluster: ocp
+domain: vipnet.localdomain
+version: stable
+tag: '4.15'
+network_type: OVNKubernetes
+#ovn_hostrouting: true
+pull_secret: openshift_pull.json
+pool: opool
+network: service
+api_ip: 192.168.254.254
+ingress_ip: 192.168.254.250
+sslip: true
+ctlplanes: 3
+workers: 0
+numcpus: 16
+memory: 32768
+bootstrap_memory: 8192
+disk_size: 100
+extra_disks:
+- 100
+apps:
+- local-storage-operator
+- odf-operator
+- users
+async: true
+notify: true
+EOF
+
+cat > openshift_pull.json << EOF
+{"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3ZwYXNpYXMxd3pzam52bmJjcWR2cGFid2YydGMycmFrNWg6NzJEMDNSQlJBNEdBNk0wNE5MSEpKRDZaV0RWRFQyNzIyODNCNTEyR0tDVlZMMUJVWDkyWk1OS1JHSTRRREkxVA==","email":"pasiasv@gmail.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3ZwYXNpYXMxd3pzam52bmJjcWR2cGFid2YydGMycmFrNWg6NzJEMDNSQlJBNEdBNk0wNE5MSEpKRDZaV0RWRFQyNzIyODNCNTEyR0tDVlZMMUJVWDkyWk1OS1JHSTRRREkxVA==","email":"pasiasv@gmail.com"},"registry.connect.redhat.com":{"auth":"NTMwNjg1NTR8dWhjLTFXWnNKblZuYmNxRHZQYWJ3RjJ0QzJSQWs1SDpleUpoYkdjaU9pSlNVelV4TWlKOS5leUp6ZFdJaU9pSXpZV1EwTmpneU1XUXdPV1kwTTJVek9ESTFNR013TUdNMU9HTXlNelF3T1NKOS5qazJhdnVUSGFmX0pXZWlHZVNPVm1KQnZzZGtrcThMNzBYWHhvRGVlOGFOS21XbllPMWFzSU9ndXVoX25JWTVVTXlJMzk4cTJ6RnI3T0ZSbXBkckxiT3BTT1hJQXNkZzdIX3VmMjJ4RmV6UDREOEcwLUZiY2xkQ3AwejRiNlJVd3djd1E1elhFa0dEQ2VCNXlLVnRrUmFDeGYwZjhBWVlvMFlWNE44QVAtd0UxaDRiYktxOTc2LU9JVENqYmtKWHdYMlhWbE94Q2dyN09lMWhzR3NBc004UzBrRFJQZlhoejIzeXJ6RDBHdmxkdlFndGxkQXhNQUxXdWROZmN6ZEYyZFdWVV81cGdudkhHczk1cjZPbHQzNDUtaGVrc0lKU0F2SVU5NHpGSEl6ZklQTzVsc2pzN1lQaFBfZEQ2aExXUmVNWDFRX0x5MVdyMWNRcWxiejFfYm5mZ0FLUXZzdmVrUnZUckthaUhpZUJkNFhSNzVPVjJVQ2JpSzVYdmdyYmtaRFh3NGhhZnJJMUNiQ3VHeWx2LXgwNHI4NDlRcDFJTkozaDBQTlMtM1BxVVRDNzZRN1ZaVnRRT2JJLXc3WGtHZ1U0TngxMS1kZkVDbnNNUFZTR0VmS19NNlA3SEpTQkotZk9mYmhZVVYySDFETTYwYnJRZW42Y280Z1RxNThWUmtvUWE1SENPQ0RuTTdWVng2SjlsQXExOHNVdXdic3pUbXdRQ0R0dmZpMDl4eWxEV1pYeXlaVjM0dmZjNXJzb3dON0VIdFFKeU1LNTFucG5vNm1GWWx6bVRHM3ZUd1BtWi13UzhKZTI5bnlDTTlzMkVVdDA1NUNmcDZyMVd6Z0VCM2tlSVU2eFdXejdycFNFWG5XQVVNYXRBdWxhT0V0c3EwVmZMd2M5WG9uUQ==","email":"pasiasv@gmail.com"},"registry.redhat.io":{"auth":"NTMwNjg1NTR8dWhjLTFXWnNKblZuYmNxRHZQYWJ3RjJ0QzJSQWs1SDpleUpoYkdjaU9pSlNVelV4TWlKOS5leUp6ZFdJaU9pSXpZV1EwTmpneU1XUXdPV1kwTTJVek9ESTFNR013TUdNMU9HTXlNelF3T1NKOS5qazJhdnVUSGFmX0pXZWlHZVNPVm1KQnZzZGtrcThMNzBYWHhvRGVlOGFOS21XbllPMWFzSU9ndXVoX25JWTVVTXlJMzk4cTJ6RnI3T0ZSbXBkckxiT3BTT1hJQXNkZzdIX3VmMjJ4RmV6UDREOEcwLUZiY2xkQ3AwejRiNlJVd3djd1E1elhFa0dEQ2VCNXlLVnRrUmFDeGYwZjhBWVlvMFlWNE44QVAtd0UxaDRiYktxOTc2LU9JVENqYmtKWHdYMlhWbE94Q2dyN09lMWhzR3NBc004UzBrRFJQZlhoejIzeXJ6RDBHdmxkdlFndGxkQXhNQUxXdWROZmN6ZEYyZFdWVV81cGdudkhHczk1cjZPbHQzNDUtaGVrc0lKU0F2SVU5NHpGSEl6ZklQTzVsc2pzN1lQaFBfZEQ2aExXUmVNWDFRX0x5MVdyMWNRcWxiejFfYm5mZ0FLUXZzdmVrUnZUckthaUhpZUJkNFhSNzVPVjJVQ2JpSzVYdmdyYmtaRFh3NGhhZnJJMUNiQ3VHeWx2LXgwNHI4NDlRcDFJTkozaDBQTlMtM1BxVVRDNzZRN1ZaVnRRT2JJLXc3WGtHZ1U0TngxMS1kZkVDbnNNUFZTR0VmS19NNlA3SEpTQkotZk9mYmhZVVYySDFETTYwYnJRZW42Y280Z1RxNThWUmtvUWE1SENPQ0RuTTdWVng2SjlsQXExOHNVdXdic3pUbXdRQ0R0dmZpMDl4eWxEV1pYeXlaVjM0dmZjNXJzb3dON0VIdFFKeU1LNTFucG5vNm1GWWx6bVRHM3ZUd1BtWi13UzhKZTI5bnlDTTlzMkVVdDA1NUNmcDZyMVd6Z0VCM2tlSVU2eFdXejdycFNFWG5XQVVNYXRBdWxhT0V0c3EwVmZMd2M5WG9uUQ==","email":"pasiasv@gmail.com"}}}
+EOF
+
+kcli create network -c 192.168.254.0/24 service && kcli create cluster openshift --force --paramfile=ocp-param.yaml
+
+export KUBECONFIG=$HOME/.kcli/clusters/ocp/auth/kubeconfig
+
+alias oc='sudo oc'
+
+oc version
+oc projects
+oc cluster-info
+oc get nodes -o wide --all-namespaces
+oc get pods -o wide --all-namespaces
+oc --help | more
+
+# Delete
+kcli delete kube ocp --yes && kcli delete network service -y
