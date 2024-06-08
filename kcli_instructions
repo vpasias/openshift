@@ -7,22 +7,14 @@ screen
 # Press Return to continue
 # detach from session without killing it: Ctrl a d 
 # to see screen sessions: screen -ls
-# detach from closed session: screen -d -r 1996.pts-0.node0
-# enter session: screen -r 1996.pts-0.node0
+# detach from closed session: screen -d -r 2042.pts-0.node0
+# enter session: screen -r 2042.pts-0.node0
 # exit a session and terminate it: exit
 
 sudo apt update -y && sudo apt install cockpit -y && sudo systemctl enable --now cockpit.socket && sudo apt install cockpit-machines -y && echo "root:gprm8350" | sudo chpasswd
 exit
 
 sudo -i
-
-screen
-# Press Return to continue
-# detach from session without killing it: Ctrl a d 
-# to see screen sessions: screen -ls
-# detach from closed session: screen -d -r 1935.pts-0.node0
-# enter session: screen -r 1935.pts-0.node0
-# exit a session and terminate it: exit
 
 cd /mnt/extra && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT && sudo virsh list --all && sudo brctl show && \
 wget -O "/mnt/extra/osinfo-db.tar.xz" https://releases.pagure.org/libosinfo/osinfo-db-20240523.tar.xz && sudo osinfo-db-import --local "/mnt/extra/osinfo-db.tar.xz"
