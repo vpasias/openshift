@@ -18,7 +18,7 @@ sudo -i
 
 # Create environment
 cd /mnt/extra && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT && sudo virsh list --all && sudo brctl show && \
-mkdir -p /mnt/extra/virt/images && mkdir -p /mnt/extra/virt/cdir && mkdir -p /mnt/extra/virt/sdir && \
+mkdir -p /mnt/extra/virt/images && mkdir -p /mnt/extra/virt/cdir && \
 echo "interface=lo" > /etc/dnsmasq.d/int-lo.conf && systemctl start dnsmasq && systemctl enable dnsmasq && \
 sed -i 's/#DNS=/DNS=127.0.0.1/' /etc/systemd/resolved.conf && sed -i 's/#Domains=/Domains="~."/' /etc/systemd/resolved.conf && \
 echo "resolv-file=/run/systemd/resolve/resolv.conf" > /etc/dnsmasq.d/resolved.conf && systemctl restart dnsmasq && systemctl restart systemd-resolved && \
