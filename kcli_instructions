@@ -37,7 +37,7 @@ exit
 
 su - iason
 
-virsh list --all && virsh net-list --all && virsh pool-list && python3 --version && python --version && python3 --version && mkdir -p /home/iason/images && mkdir -p /home/iason/vms
+virsh list --all && virsh net-list --all && virsh pool-list && python3 --version && python --version && mkdir -p /home/iason/images && mkdir -p /home/iason/vms
 
 ########################################################################################################################################################################
 ####################### kcli (https://github.com/karmab/kcli) ########################################################################################################
