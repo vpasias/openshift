@@ -19,10 +19,6 @@ sudo -i
 cd /mnt/extra && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT && sudo virsh list --all && sudo brctl show && \
 wget -O "/mnt/extra/osinfo-db.tar.xz" https://releases.pagure.org/libosinfo/osinfo-db-20240523.tar.xz && sudo osinfo-db-import --local "/mnt/extra/osinfo-db.tar.xz"
 
-# Create the iason user
-sudo useradd iason -m -s /bin/bash && sudo usermod -aG sudo iason && echo "iason:iason" | chpasswd && echo "iason ALL=(root) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/iason && \
-sudo chmod 0440 /etc/sudoers.d/iason && su - iason
-
 # Install dependencies
 sudo apt update -y && sudo apt-get install apt-transport-https ca-certificates curl gnupg python3-venv -y && \
 sudo usermod -aG libvirt `id -un` && sudo adduser `id -un` libvirt-qemu && sudo adduser `id -un` kvm && sudo adduser `id -un` libvirt-dnsmasq && sudo sed -i 's/0770/0777/' /etc/libvirt/libvirtd.conf && \
@@ -35,9 +31,9 @@ sudo mv openshift-install /usr/local/bin && rm -f README.md LICENSE openshift-in
 
 exit
 
-su - iason
+virsh list --all && virsh net-list --all && virsh pool-list && python3 --version && python --version
 
-virsh list --all && virsh net-list --all && virsh pool-list && python3 --version && python --version && mkdir -p /home/iason/images && mkdir -p /home/iason/vms
+sudo -i
 
 ########################################################################################################################################################################
 ####################### kcli (https://github.com/karmab/kcli) ########################################################################################################
@@ -52,10 +48,14 @@ curl https://raw.githubusercontent.com/karmab/kcli/master/install.sh | sudo bash
 
 alias kcli='sudo kcli'
 
-kcli create network -c 192.168.254.0/24 service && \
-kcli create pool -p /home/iason/images opool && \
-sudo setfacl -m u:$(id -un):rwx /var/lib/libvirt/images && sudo setfacl -m u:$(id -un):rwx /home/iason/images && \
-kcli list images && kcli list vms && mkdir -p kclilabs && cd kclilabs
+mkdir -p /mnt/extra/virt && kcli create pool -p /mnt/extra/virt default && kcli create network -c 192.168.254.0/24 service && \
+kcli list images && kcli list vms && kcli list pools && mkdir -p kclilabs && cd kclilabs
+
+#kcli create vm -i centos9stream -P memory=327680 -P numcpus=60 -P disks=['{"size": 1200, "interface": "sata"}'] -P cmds=['sudo yum -y update && sudo yum -y install vim epel-next-release python3-pip'] ocp
+#kcli delete vm ocp -y
+# ssh root@ocp
+# kcli list available-images
+# kcli create pool -p /var/lib/libvirt/images default && sudo setfacl -m u:$(id -un):rwx /var/lib/libvirt/images && kcli create network -c 192.168.254.0/24 service
 
 ### Openshift Cluster
 
@@ -67,12 +67,10 @@ domain: vipnet.localdomain
 version: stable
 tag: '4.15'
 network_type: OVNKubernetes
-#ovn_hostrouting: true
 pull_secret: openshift_pull.json
-pool: opool
 network: service
 api_ip: 192.168.254.254
-#ingress_ip: 192.168.254.250
+ingress_ip: 192.168.254.250
 sslip: true
 ctlplanes: 3
 workers: 0
@@ -98,9 +96,10 @@ EOF
 
 kcli create kube openshift --paramfile=ocp-param.yaml $cluster
 
-export KUBECONFIG=$HOME/.kcli/clusters/ocp/auth/kubeconfig
+#export KUBECONFIG=$HOME/.kcli/clusters/ocp/auth/kubeconfig
+export KUBECONFIG=/root/.kcli/clusters/ocp/auth/kubeconfig
 
-alias oc='sudo oc'
+#alias oc='sudo oc'
 
 oc projects
 oc cluster-info
