@@ -51,7 +51,10 @@ alias kcli='sudo kcli'
 mkdir -p /mnt/extra/virt && kcli create pool -p /mnt/extra/virt default && kcli create network -c 192.168.254.0/24 service && \
 kcli list images && kcli list vms && kcli list pools && mkdir -p kclilabs && cd kclilabs
 
-#kcli create vm -i centos9stream -P memory=327680 -P numcpus=60 -P disks=['{"size": 1200, "interface": "sata"}'] -P cmds=['sudo yum -y update && sudo yum -y install vim epel-next-release python3-pip'] ocp
+#kcli create vm -i debian12 -P memory=327680 -P numcpus=60 -P disks=['{"size": 1300, "interface": "sata"}'] -P cmds=['sudo apt-get update -y'] oci
+#kcli delete vm oci -y
+# ssh root@oci
+#kcli create vm -i centos9stream -P memory=327680 -P numcpus=60 -P disks=['{"size": 1300, "interface": "sata"}'] -P cmds=['sudo yum -y update && sudo yum -y install vim epel-next-release python3-pip'] ocp
 #kcli delete vm ocp -y
 # ssh root@ocp
 # kcli list available-images
@@ -75,7 +78,7 @@ sslip: true
 ctlplanes: 3
 workers: 0
 numcpus: 16
-memory: 32768
+memory: 65536
 bootstrap_memory: 8192
 disk_size: 100
 extra_disks:
@@ -106,6 +109,11 @@ oc cluster-info
 oc get nodes -o wide --all-namespaces
 oc get pods -o wide --all-namespaces
 oc --help | more
+oc get sc
+oc get csv -n openshift-cnv
+oc get pods -n openshift-storage
 
-# Delete
+######################## Delete ########################################################
+# Destroy the already installed cluster
+########################################################################################
 kcli delete kube ocp --yes && kcli delete network service -y
