@@ -67,7 +67,7 @@ exit
 # Exposing the cluster outside the host/hypervisor
 cd /mnt/extra/virt/sdir/ && ./expose_cluster.sh --method haproxy
 
-# Install OpenShift Data Foundation
+### Install OpenShift Data Foundation
 cd /mnt/extra/virt/sdir/ && \
 ./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-1 && \
 ./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-2 && \
@@ -302,7 +302,7 @@ EOF
 
 oc get pvc | grep cephfs-pvc
 
-# Installing the OpenShift Virtualization Operator by using the command line
+### Installing the OpenShift Virtualization Operator by using the command line
 
 cat <<EOF | oc create -f -
 apiVersion: v1
@@ -343,7 +343,7 @@ EOF
 
 watch oc get csv -n openshift-cnv
 
-# Deploying OpenStack Operators on OpenShift
+### Deploying OpenStack Operators on OpenShift
 # https://lewisdenny.io/openstack_operator_deployment/
 
 git clone https://github.com/openstack-k8s-operators/install_yamls.git && cd install_yamls
