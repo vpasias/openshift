@@ -67,7 +67,7 @@ exit
 # Exposing the cluster outside the host/hypervisor
 cd /mnt/extra/virt/sdir/ && ./expose_cluster.sh --method haproxy
 
-# Install OpenShift Data Foundation / OpenShift Container Storage (OCS) 4
+# Install OpenShift Data Foundation
 cd /mnt/extra/virt/sdir/ && \
 ./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-1 && \
 ./add_node.sh --cpu 16 --memory 32768 --add-disk 100 --add-disk 100 --name storage-2 && \
@@ -80,7 +80,40 @@ while true; do
   sleep 5;
 done
 
-watch oc get nodes
+cat <<EOF | oc apply -f -
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: openshift-local-storage
+spec: {}
+EOF
+
+cat <<EOF | oc apply -f -
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: local-operator-group
+  namespace: openshift-local-storage
+spec:
+  targetNamespaces:
+  - openshift-local-storage
+EOF
+
+cat <<EOF | oc apply -f -
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: local-storage-operator
+  namespace: openshift-local-storage
+spec:
+  channel: "stable"
+  installPlanApproval: Automatic
+  name: local-storage-operator
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+EOF
+
+oc get nodes
 
 source ./env
 
@@ -88,85 +121,50 @@ oc label node storage-1.${CLUSTER_NAME}.${BASE_DOM} cluster.ocs.openshift.io/ope
 oc label node storage-2.${CLUSTER_NAME}.${BASE_DOM} cluster.ocs.openshift.io/openshift-storage='' && \
 oc label node storage-3.${CLUSTER_NAME}.${BASE_DOM} cluster.ocs.openshift.io/openshift-storage=''
 
-oc new-project local-storage
-
-cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1
-kind: OperatorGroup
+cat <<EOF | oc apply -f -
+apiVersion: local.storage.openshift.io/v1alpha1
+kind: LocalVolumeDiscovery
 metadata:
-  name: local-storage-opg
-  namespace: local-storage
-spec:
-  targetNamespaces:
-  - local-storage
-EOF
-
-cat <<EOF | oc create -f -
-apiVersion: operators.coreos.com/v1alpha1
-kind: Subscription
-metadata:
-  name: local-storage-operator
-  namespace: local-storage 
-spec:
-  channel: "4.15"
-  name: local-storage-operator
-  source: redhat-operators
-  sourceNamespace: openshift-marketplace
-EOF
-
-watch oc get csv -n local-storage
-
-cat <<EOF | oc create -f -
-apiVersion: "local.storage.openshift.io/v1"
-kind: "LocalVolume"
-metadata:
-  name: "local-disks-fs"
-  namespace: "local-storage"
+  name: auto-discover-devices
+  namespace: openshift-local-storage
 spec:
   nodeSelector:
     nodeSelectorTerms:
-    - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - storage-1.${CLUSTER_NAME}.${BASE_DOM}
-          - storage-2.${CLUSTER_NAME}.${BASE_DOM}
-          - storage-3.${CLUSTER_NAME}.${BASE_DOM}
-  storageClassDevices:
-    - storageClassName: "lo-fs"
-      volumeMode: Filesystem
-      devicePaths:
-        - /dev/vdb
+      - matchExpressions:
+        - key: cluster.ocs.openshift.io/openshift-storage
+          operator: Exists
 EOF
 
-cat <<EOF | oc create -f -
-apiVersion: "local.storage.openshift.io/v1"
-kind: "LocalVolume"
+cat > localvolumeset.yaml << EOF
+apiVersion: local.storage.openshift.io/v1alpha1
+kind: LocalVolumeSet
 metadata:
-  name: "local-disks"
-  namespace: "local-storage"
+  name: local-block
+  namespace: openshift-local-storage
 spec:
   nodeSelector:
     nodeSelectorTerms:
-    - matchExpressions:
-        - key: kubernetes.io/hostname
-          operator: In
-          values:
-          - storage-1.${CLUSTER_NAME}.${BASE_DOM}
-          - storage-2.${CLUSTER_NAME}.${BASE_DOM}
-          - storage-3.${CLUSTER_NAME}.${BASE_DOM}
-  storageClassDevices:
-    - storageClassName: "lo-blk"
-      volumeMode: Block
-      devicePaths:
-        - /dev/vdc
+      - matchExpressions:
+          - key: cluster.ocs.openshift.io/openshift-storage
+            operator: In
+            values:
+              - ""
+  storageClassName: localblock
+  volumeMode: Block
+  fstype: ext4
+  maxDeviceCount: 1  # <-- Maximum number of devices per node to be used
+  deviceInclusionSpec:
+    deviceTypes:
+    - disk
+    deviceMechanicalProperties:
+    - NonRotational   # <-- For HDD change to Rotational
+    #minSize: 0Ti   # <-- Uncomment and modify to limit the minimum size of disk used
+    #maxSize: 0Ti   # <-- Uncomment and modify to limit the maximum size of disk used
 EOF
 
-watch oc get pods -n local-storage
+oc create -f localvolumeset.yaml
 
-oc get sc
-
-cat <<EOF | oc create -f -
+cat <<EOF | oc apply -f -
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -176,91 +174,133 @@ metadata:
 spec: {}
 EOF
 
-cat <<EOF | oc create -f -
+cat <<EOF | oc apply -f -
 apiVersion: operators.coreos.com/v1
 kind: OperatorGroup
 metadata:
-  name: openshift-storage-opg
+  name: openshift-storage-operatorgroup
   namespace: openshift-storage
 spec:
   targetNamespaces:
   - openshift-storage
 EOF
 
-cat <<EOF | oc create -f -
+cat <<EOF | oc apply -f -
 apiVersion: operators.coreos.com/v1alpha1
 kind: Subscription
 metadata:
-  name: ocs-operator
-  namespace: openshift-storage 
+  name: odf-operator
+  namespace: openshift-storage
 spec:
   channel: "stable-4.15"
-  name: ocs-operator
+  installPlanApproval: Automatic
+  name: odf-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
 EOF
 
-watch oc get csv -n openshift-storage
+oc patch console.operator cluster -n openshift-storage --type json -p '[{"op": "add", "path": "/spec/plugins", "value": ["odf-console"]}]'
 
-cat <<EOF | oc create -f -
+cat > storagecluster.yaml << EOF
 apiVersion: ocs.openshift.io/v1
 kind: StorageCluster
 metadata:
   name: ocs-storagecluster
   namespace: openshift-storage
 spec:
-  manageNodes: false
-  monPVCTemplate:
-    spec:
-      accessModes:
-      - ReadWriteOnce
-      resources:
-        requests:
-          storage: 50Gi
-      storageClassName: 'lo-fs'
-      volumeMode: Filesystem
-  resources:      
-    mon:      
-      requests: {}
-      limits: {}
+  arbiter: {}
+  encryption:
+    kms: {}
+  externalStorage: {}
+  flexibleScaling: true
+  resources:
     mds:
-      requests: {}
-      limits: {}
-    rgw:      
-      requests: {}
-      limits: {}
-    mgr:
-      requests: {}
-      limits: {}
-    noobaa-core:      
-      requests: {}
-      limits: {}
-    noobaa-db:        
-      requests: {}
-      limits: {}
+      limits:
+        cpu: "3"
+        memory: "8Gi"
+      requests:
+        cpu: "3"
+        memory: "8Gi"
+  monDataDirHostPath: /var/lib/rook
+  managedResources:
+    cephBlockPools:
+      reconcileStrategy: manage   # <-- Default value is manage
+    cephConfig: {}
+    cephFilesystems: {}
+    cephObjectStoreUsers: {}
+    cephObjectStores: {}
+  multiCloudGateway:
+    reconcileStrategy: manage   # <-- Default value is manage
   storageDeviceSets:
-  - count: 1
+  - count: 1  # <-- Modify count to desired value. For each set of 3 disks increment the count by 1.
     dataPVCTemplate:
       spec:
         accessModes:
         - ReadWriteOnce
         resources:
           requests:
-            storage: 100Gi
-        storageClassName: 'lo-blk'
+            storage: "100Mi"
+        storageClassName: localblock
         volumeMode: Block
     name: ocs-deviceset
     placement: {}
-    portable: true
+    portable: false
     replica: 3
     resources:
-      requests: {}
-      limits: {}
+      limits:
+        cpu: "2"
+        memory: "5Gi"
+      requests:
+        cpu: "2"
+        memory: "5Gi"
 EOF
 
-watch oc get pods -n openshift-storage
+oc create -f storagecluster.yaml
 
-oc get sc
+oc patch OCSInitialization ocsinit -n openshift-storage --type json --patch  '[{ "op": "replace", "path": "/spec/enableCephTools", "value": true }]'
+
+TOOLS_POD=$(oc get pods -n openshift-storage -l app=rook-ceph-tools -o name)
+oc rsh -n openshift-storage $TOOLS_POD
+
+ceph status
+
+ceph osd tree
+
+exit
+
+cat <<EOF | oc apply -f -
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: rbd-pvc
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ocs-storagecluster-ceph-rbd
+EOF
+
+oc get pvc | grep rbd-pvc
+
+cat <<EOF | oc apply -f -
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: cephfs-pvc
+spec:
+  accessModes:
+  - ReadWriteMany
+  resources:
+    requests:
+      storage: 1Gi
+  storageClassName: ocs-storagecluster-cephfs
+EOF
+
+oc get pvc | grep cephfs-pvc
 
 # Installing the OpenShift Virtualization Operator by using the command line
 
