@@ -1,1 +1,126 @@
+chmod +x cloudlab-setup-ubuntu-tl.sh && ./cloudlab-setup-ubuntu-tl.sh && \
+sudo apt-get install libvirt-daemon genisoimage libguestfs-tools libosinfo-bin virtinst qemu-kvm git vim net-tools wget curl bash-completion python-pip libvirt-daemon-system virt-manager bridge-utils libnss-libvirt libvirt-clients osinfo-db-tools intltool sshpass p7zip-full p7zip-rar uvtool dnsmasq -y && \
+sudo sed -i 's/hosts:          files dns/hosts:          files libvirt libvirt_guest dns/' /etc/nsswitch.conf && sudo lsmod | grep kvm && sudo reboot
+#sudo systemctl restart libvirtd && sudo systemctl status libvirtd
 
+screen
+# Press Return to continue
+# detach from session without killing it: Ctrl a d 
+# to see screen sessions: screen -ls
+# detach from closed session: screen -d -r 2042.pts-0.node0
+# enter session: screen -r 2042.pts-0.node0
+# exit a session and terminate it: exit
+
+sudo apt update -y && sudo apt install cockpit -y && sudo systemctl enable --now cockpit.socket && sudo apt install cockpit-machines -y && echo "root:gprm8350" | sudo chpasswd
+exit
+
+sudo -i
+
+cd /mnt/extra && cat /sys/module/kvm_intel/parameters/nested && cat /proc/cpuinfo | awk '/^processor/{print $3}' | wc -l && free -h && df -hT && sudo virsh list --all && sudo brctl show && \
+wget -O "/mnt/extra/osinfo-db.tar.xz" https://releases.pagure.org/libosinfo/osinfo-db-20240523.tar.xz && sudo osinfo-db-import --local "/mnt/extra/osinfo-db.tar.xz"
+
+# Install dependencies
+sudo apt update -y && sudo apt-get install apt-transport-https ca-certificates curl gnupg python3-venv -y && \
+sudo usermod -aG libvirt `id -un` && sudo adduser `id -un` libvirt-qemu && sudo adduser `id -un` kvm && sudo adduser `id -un` libvirt-dnsmasq && sudo sed -i 's/0770/0777/' /etc/libvirt/libvirtd.conf && \
+echo 0 | sudo tee /sys/module/kvm/parameters/halt_poll_ns && echo 'security_driver = "none"' | sudo tee /etc/libvirt/qemu.conf && sudo chmod 0644 /boot/vmlinuz* && \
+sudo systemctl restart libvirtd && sudo systemctl status libvirtd
+
+exit
+
+virsh list --all && virsh net-list --all && virsh pool-list && python3 --version && python --version
+
+sudo -i
+
+########################################################################################################################################################################
+####################### kcli (https://github.com/karmab/kcli) ########################################################################################################
+####  https://www.linkedin.com/pulse/kcli-only-tool-you-need-create-kubernetes-openshift-banerjee?trk=pulse-article_more-articles_related-content-card ##########  
+########################################################################################################################################################################
+
+mkdir -p $HOME/.kcli
+
+ssh-keygen -t rsa -N '' -f $HOME/.ssh/id_rsa
+
+curl https://raw.githubusercontent.com/karmab/kcli/master/install.sh | sudo bash
+
+alias kcli='sudo kcli'
+
+mkdir -p /mnt/extra/virt && kcli create pool -p /mnt/extra/virt default && kcli create network -c 192.168.254.0/24 service && \
+kcli list images && kcli list vms && kcli list pools && mkdir -p kclilabs && cd kclilabs
+
+kcli create vm -i centos9stream -P memory=327680 -P numcpus=60 -P disks=['{"size": 1300, "interface": "sata"}'] -P cmds=['sudo yum -y update && sudo yum -y install vim epel-next-release python3-pip'] ocp
+kcli ssh ocp
+
+### Deployment of OpenStack K8S with operators - proof of concept environment
+### https://sigs.centos.org/cloud/rdo_on_okd/CRC_PoC/
+
+mkdir -p ~/.local/bin/ && sudo dnf install -y git wget jq make tmux golang
+
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-client-linux.tar.gz && tar xvf openshift-client-linux.tar.gz && \
+sudo mv oc kubectl /usr/local/bin && rm -f README.md LICENSE openshift-client-linux.tar.gz && \
+wget https://mirror.openshift.com/pub/openshift-v4/clients/ocp/latest/openshift-install-linux.tar.gz && tar xvf openshift-install-linux.tar.gz && \
+sudo mv openshift-install /usr/local/bin && rm -f README.md LICENSE openshift-install-linux.tar.gz && openshift-install version && oc version && kubectl version --client && \
+wget https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv5.4.2/kustomize_v5.4.2_linux_amd64.tar.gz && \
+tar xzvf kustomize_v5.4.2_linux_amd64.tar.gz -C ~/.local/bin/ && \
+wget  https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64.tar.gz && mkdir yq && tar xzvf yq_linux_amd64.tar.gz -C yq && \
+cp yq/yq_linux_amd64 ~/.local/bin/yq
+
+git clone https://github.com/openstack-k8s-operators/install_yamls.git && \
+wget https://developers.redhat.com/content-gateway/file/pub/openshift-v4/clients/crc/2.37.1/crc-linux-amd64.tar.xz && \
+tar xvf crc-linux-amd64.tar.xz && cp crc-linux-*-amd64/crc ~/.local/bin && \
+crc config set preset okd && crc config set consent-telemetry no && crc config view && crc setup && \
+crc start -m 65536 -c 16 -d 200
+
+eval $(crc oc-env)
+# see password from the below command
+crc console --credentials
+oc login -u kubeadmin -p <password> https://api.crc.testing:6443
+oc get pods -A
+
+cd ~/install_yamls/devsetup && make crc_attach_default_interface && cd .. 
+make crc_storage && oc get pv
+
+ssh -i ~/.crc/machines/crc/id_ecdsa -o StrictHostKeyChecking=no core@`crc ip`
+
+cd ~/install_yamls
+export GOPROXY="https://proxy.golang.org,direct"
+make input
+make openstack OKD=true
+
+oc get csv -n openstack-operators
+
+cd ~/install_yamls/devsetup
+EDPM_TOTAL_NODES=2 make edpm_compute
+
+sudo virsh list
+
+ssh 192.168.122.100 -i ~/install_yamls/out/edpm/ansibleee-ssh-key-id_rsa -l cloud-admin
+
+make openstack_deploy OKD=true
+
+oc get openstackcontrolplane
+
+oc get openstackcontrolplane -n openstack
+
+oc get deployments -n openstack
+oc get statefulset -n openstack
+oc get csv -n openstack
+oc get pods -n openstack -w
+
+cd ~/install_yamls/
+DATAPLANE_TOTAL_NODES=2 make edpm_wait_deploy
+
+oc get openstackdataplanedeployment
+oc get openstackdataplanenodeset
+
+oc get pods -n openstack | grep edpm
+
+#Test the OpenStack deployment
+oc rsh openstackclient
+openstack endpoint list
+cd ~/install_yamls/devsetup
+make edpm_deploy_instance
+
+######################## Delete ########################################################
+# Destroy the already installed cluster
+########################################################################################
+kcli delete vm ocp -y
