@@ -349,29 +349,35 @@ watch oc get csv -n openshift-cnv
 git clone https://github.com/openstack-k8s-operators/install_yamls.git && cd install_yamls
 make crc_storage
 make openstack
+make input
 oc get csv -l operators.coreos.com/openstack-operator.openstack -w
 
 make openstack_deploy
 oc get pods -w
 oc get all -n openstack
 oc get route -n openstack
+oc get service -n openstack | grep public
 
+mkdir -p ~/.config/openstack
+cat > ~/.config/openstack/clouds.yaml << EOF
+$(oc get cm openstack-config -o json | jq -r '.data["clouds.yaml"]')
+EOF
+
+oc exec -it  pod/mariadb-openstack -- mysql -uroot -p12345678 -e "show databases;"
+oc exec pod/ovsdbserver-sb-0 -- ovn-sbctl show
 oc get pods -l control-plane=controller-manager
 oc get pods -l app=mariadb
 oc get pods -l app.kubernetes.io/component=rabbitmq
 oc get pods -l service=keystone
 oc get pods -l service=glance
 
-openstack service list && openstack endpoint list
+oc rsh openstackclient
+
+openstack network agent list && openstack service list && openstack endpoint list
 
 cd
 wget http://download.cirros-cloud.net/0.5.2/cirros-0.5.2-x86_64-disk.img -O cirros.img && \
 openstack image create cirros --container-format=bare --disk-format=qcow2 < cirros.img && openstack image list
-
-mkdir -p ~/.config/openstack
-cat > ~/.config/openstack/clouds.yaml << EOF
-$(oc get cm openstack-config -o json | jq -r '.data["clouds.yaml"]')
-EOF
 
 # Delete Openstack
 cd ~/install_yamls && \
