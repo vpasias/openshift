@@ -51,48 +51,42 @@ kcli create vm -i centos9stream -P memory=327680 -P numcpus=60 -P disks=['{"size
 kcli ssh ocp
 
 ### Deployment of OpenStack K8S with operators - proof of concept environment
-### https://qiita.com/xotaki/items/ca3a4a3cfafa45d84d17
+### https://github.com/openstack-k8s-operators/cinder-operator.git
 
-mkdir -p ~/bin/ && sudo dnf install -y git wget jq make tmux golang go-toolset httpd-tools && \
-sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/bin/yq && sudo chmod +x /usr/bin/yq
-
-git clone https://github.com/openstack-k8s-operators/install_yamls.git && cd install_yamls/devsetup
+sudo dnf -y install git make wget ansible-core && \
+git clone https://github.com/openstack-k8s-operators/install_yamls.git
 
 # Go to: https://cloud.redhat.com/openshift/install/pull-secret
-cat > ~/install_yamls/devsetup/pull-secret.txt << EOF
+cat > ~/pull-secret << EOF
 {"auths":{"cloud.openshift.com":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3ZwYXNpYXMxd3pzam52bmJjcWR2cGFid2YydGMycmFrNWg6NzJEMDNSQlJBNEdBNk0wNE5MSEpKRDZaV0RWRFQyNzIyODNCNTEyR0tDVlZMMUJVWDkyWk1OS1JHSTRRREkxVA==","email":"pasiasv@gmail.com"},"quay.io":{"auth":"b3BlbnNoaWZ0LXJlbGVhc2UtZGV2K3ZwYXNpYXMxd3pzam52bmJjcWR2cGFid2YydGMycmFrNWg6NzJEMDNSQlJBNEdBNk0wNE5MSEpKRDZaV0RWRFQyNzIyODNCNTEyR0tDVlZMMUJVWDkyWk1OS1JHSTRRREkxVA==","email":"pasiasv@gmail.com"},"registry.connect.redhat.com":{"auth":"NTMwNjg1NTR8dWhjLTFXWnNKblZuYmNxRHZQYWJ3RjJ0QzJSQWs1SDpleUpoYkdjaU9pSlNVelV4TWlKOS5leUp6ZFdJaU9pSXpZV1EwTmpneU1XUXdPV1kwTTJVek9ESTFNR013TUdNMU9HTXlNelF3T1NKOS5qazJhdnVUSGFmX0pXZWlHZVNPVm1KQnZzZGtrcThMNzBYWHhvRGVlOGFOS21XbllPMWFzSU9ndXVoX25JWTVVTXlJMzk4cTJ6RnI3T0ZSbXBkckxiT3BTT1hJQXNkZzdIX3VmMjJ4RmV6UDREOEcwLUZiY2xkQ3AwejRiNlJVd3djd1E1elhFa0dEQ2VCNXlLVnRrUmFDeGYwZjhBWVlvMFlWNE44QVAtd0UxaDRiYktxOTc2LU9JVENqYmtKWHdYMlhWbE94Q2dyN09lMWhzR3NBc004UzBrRFJQZlhoejIzeXJ6RDBHdmxkdlFndGxkQXhNQUxXdWROZmN6ZEYyZFdWVV81cGdudkhHczk1cjZPbHQzNDUtaGVrc0lKU0F2SVU5NHpGSEl6ZklQTzVsc2pzN1lQaFBfZEQ2aExXUmVNWDFRX0x5MVdyMWNRcWxiejFfYm5mZ0FLUXZzdmVrUnZUckthaUhpZUJkNFhSNzVPVjJVQ2JpSzVYdmdyYmtaRFh3NGhhZnJJMUNiQ3VHeWx2LXgwNHI4NDlRcDFJTkozaDBQTlMtM1BxVVRDNzZRN1ZaVnRRT2JJLXc3WGtHZ1U0TngxMS1kZkVDbnNNUFZTR0VmS19NNlA3SEpTQkotZk9mYmhZVVYySDFETTYwYnJRZW42Y280Z1RxNThWUmtvUWE1SENPQ0RuTTdWVng2SjlsQXExOHNVdXdic3pUbXdRQ0R0dmZpMDl4eWxEV1pYeXlaVjM0dmZjNXJzb3dON0VIdFFKeU1LNTFucG5vNm1GWWx6bVRHM3ZUd1BtWi13UzhKZTI5bnlDTTlzMkVVdDA1NUNmcDZyMVd6Z0VCM2tlSVU2eFdXejdycFNFWG5XQVVNYXRBdWxhT0V0c3EwVmZMd2M5WG9uUQ==","email":"pasiasv@gmail.com"},"registry.redhat.io":{"auth":"NTMwNjg1NTR8dWhjLTFXWnNKblZuYmNxRHZQYWJ3RjJ0QzJSQWs1SDpleUpoYkdjaU9pSlNVelV4TWlKOS5leUp6ZFdJaU9pSXpZV1EwTmpneU1XUXdPV1kwTTJVek9ESTFNR013TUdNMU9HTXlNelF3T1NKOS5qazJhdnVUSGFmX0pXZWlHZVNPVm1KQnZzZGtrcThMNzBYWHhvRGVlOGFOS21XbllPMWFzSU9ndXVoX25JWTVVTXlJMzk4cTJ6RnI3T0ZSbXBkckxiT3BTT1hJQXNkZzdIX3VmMjJ4RmV6UDREOEcwLUZiY2xkQ3AwejRiNlJVd3djd1E1elhFa0dEQ2VCNXlLVnRrUmFDeGYwZjhBWVlvMFlWNE44QVAtd0UxaDRiYktxOTc2LU9JVENqYmtKWHdYMlhWbE94Q2dyN09lMWhzR3NBc004UzBrRFJQZlhoejIzeXJ6RDBHdmxkdlFndGxkQXhNQUxXdWROZmN6ZEYyZFdWVV81cGdudkhHczk1cjZPbHQzNDUtaGVrc0lKU0F2SVU5NHpGSEl6ZklQTzVsc2pzN1lQaFBfZEQ2aExXUmVNWDFRX0x5MVdyMWNRcWxiejFfYm5mZ0FLUXZzdmVrUnZUckthaUhpZUJkNFhSNzVPVjJVQ2JpSzVYdmdyYmtaRFh3NGhhZnJJMUNiQ3VHeWx2LXgwNHI4NDlRcDFJTkozaDBQTlMtM1BxVVRDNzZRN1ZaVnRRT2JJLXc3WGtHZ1U0TngxMS1kZkVDbnNNUFZTR0VmS19NNlA3SEpTQkotZk9mYmhZVVYySDFETTYwYnJRZW42Y280Z1RxNThWUmtvUWE1SENPQ0RuTTdWVng2SjlsQXExOHNVdXdic3pUbXdRQ0R0dmZpMDl4eWxEV1pYeXlaVjM0dmZjNXJzb3dON0VIdFFKeU1LNTFucG5vNm1GWWx6bVRHM3ZUd1BtWi13UzhKZTI5bnlDTTlzMkVVdDA1NUNmcDZyMVd6Z0VCM2tlSVU2eFdXejdycFNFWG5XQVVNYXRBdWxhT0V0c3EwVmZMd2M5WG9uUQ==","email":"pasiasv@gmail.com"}}}
 EOF
 
-CPUS=16 MEMORY=65536 DISK=200 make crc
+cd install_yamls/devsetup
+
+PULL_SECRET=~/pull-secret CPUS=16 MEMORY=65536 DISK=200 make download_tools crc
+
+make crc_attach_default_interface
 
 sudo cp -a /home/cloud-user/.crc/cache/crc_libvirt_4.15.14_amd64/oc /usr/bin/oc && eval $(crc oc-env)
 #crc console --credentials
-oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
-oc get pods -A
+#oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
+#oc get pods -A
 
-sudo dnf -y install ansible-core
-make download_tools
-
-make crc_attach_default_interface
-EDPM_TOTAL_NODES=2 make edpm_compute
-
-sudo virsh list
-
-ssh 192.168.124.100 -i ~/install_yamls/out/edpm/ansibleee-ssh-key-id_rsa -l cloud-admin
-
-cd .. && make crc_storage && make input
-#oc get csv
-
-curl -LO "https://dl.k8s.io/release/$(curl -LS https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" && chmod +x ./kubectl && mv kubectl ~/bin && \
-curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh"  | bash && mv kustomize ~/bin
-
-make openstack
+cd .. && make crc_storage openstack_wait
 
 # All openstack operators should appear in phase 'Succeeded'
 oc get csv -n openstack-operators
 oc get pods
 
-make openstack_deploy
+oc kustomize \
+  https://github.com/openstack-k8s-operators/cinder-operator.git/config/samples/backends/lvm/iscsi?ref=main \
+  > ~/openstack-deployment.yaml
+
+oc label node --all openstack.org/cinder-lvm=
+
+OPENSTACK_CR=~/openstack-deployment.yaml make openstack_deploy
+
+oc wait --for condition=Ready --timeout=300s
 
 # It will show status 'Setup Complete' when all the services as running
 oc get openstackcontrolplane -n openstack
@@ -102,13 +96,24 @@ oc get deployments -n openstack
 oc get statefulset -n openstack
 oc get csv -n openstack
 
-DATAPLANE_TOTAL_NODES=2 make edpm_wait_deploy
+cd devsetup && make edpm_compute
+# cd devsetup && EDPM_TOTAL_NODES=2 make edpm_compute
+
+sudo virsh list
+
+ssh 192.168.124.100 -i ~/install_yamls/out/edpm/ansibleee-ssh-key-id_rsa -l cloud-admin
+
+cd .. && DATAPLANE_TIMEOUT=60m make edpm_wait_deploy
+# cd .. && DATAPLANE_TIMEOUT=60m DATAPLANE_TOTAL_NODES=2 make edpm_wait_deploy
 
 oc get openstackdataplanedeployment
 oc get openstackdataplanenodeset
 
 oc get pods -n openstack | grep edpm
 oc get pod |grep deployment
+
+oc exec -t openstackclient -- openstack volume service list
+oc exec -t openstackclient -- openstack compute service list
 
 #Test the OpenStack deployment
 oc rsh openstackclient
