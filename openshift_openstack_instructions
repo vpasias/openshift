@@ -63,7 +63,7 @@ EOF
 
 cd install_yamls/devsetup
 
-PULL_SECRET=~/pull-secret CPUS=16 MEMORY=65536 DISK=200 make download_tools crc
+PULL_SECRET=~/pull-secret CPUS=32 MEMORY=131072 DISK=300 make download_tools crc
 
 make crc_attach_default_interface
 
