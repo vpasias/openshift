@@ -72,6 +72,9 @@ sudo cp -a /home/cloud-user/.crc/cache/crc_libvirt_4.15.14_amd64/oc /usr/bin/oc 
 #oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
 #oc get pods -A
 
+export PATH=$PATH:$HOME/bin
+echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
+
 cd .. && make crc_storage openstack_wait
 
 # All openstack operators should appear in phase 'Succeeded'
