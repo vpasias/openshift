@@ -63,7 +63,7 @@ EOF
 
 cd install_yamls/devsetup
 
-make download_tools && PULL_SECRET=~/pull-secret CPUS=32 MEMORY=131072 DISK=300 make crc
+make download_tools && PULL_SECRET=~/pull-secret CPUS=16 MEMORY=65536 DISK=200 make crc
 
 make crc_attach_default_interface
 
@@ -71,9 +71,6 @@ sudo cp -a /home/cloud-user/.crc/cache/crc_libvirt_4.15.14_amd64/oc /usr/bin/oc 
 #crc console --credentials
 #oc login -u kubeadmin -p 12345678 https://api.crc.testing:6443
 #oc get pods -A
-
-export PATH=$PATH:$HOME/bin
-echo 'export PATH=$PATH:$HOME/bin' >> ~/.bashrc
 
 cd .. && make crc_storage && make openstack_wait
 
@@ -127,7 +124,8 @@ openstack endpoint list
 cd ~/install_yamls/devsetup
 make edpm_deploy_instance
 
-oc rsh openstackclient openstack server list
+oc rsh openstackclient openstack endpoint list && openstack service list && openstack compute service list && \
+openstack network agent list && openstack volume service list && cinder get-pools
 
 ######################## Delete ########################################################
 # Destroy the already installed cluster
