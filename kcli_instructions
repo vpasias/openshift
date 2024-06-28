@@ -76,7 +76,7 @@ api_ip: 192.168.254.254
 ingress_ip: 192.168.254.250
 sslip: true
 ctlplanes: 3
-workers: 0
+workers: 3
 numcpus: 16
 memory: 65536
 bootstrap_memory: 8192
